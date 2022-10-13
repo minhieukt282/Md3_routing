@@ -33,13 +33,13 @@ handlers.login = (req, res) => {
         })
         req.on('end', () => {
             let userInfo = qs.parse(data)
-            let userString = fs.readFileSync('./data/user.JSON', {encoding: 'utf8', flag: 'r'})
+            let userString = readData('./data/user.JSON')
             let users = JSON.parse(userString)
             users.forEach(item => {
                 if (userInfo.name === item.name && userInfo.password === item.password) {
                     id = item.id
-                    path = '/edit'
-                    fs.writeFileSync('./data/tempId.JSON', id)
+                    path = '/profile'
+                    writeData('./data/tempId.JSON', id)
                 }
             });
             res.writeHead(301, {'location': path})
@@ -72,7 +72,7 @@ handlers.register = (req, res) => {
         req.on('end', () => {
             let direction = false
             let userInfo = qs.parse(data)
-            let userString = fs.readFileSync('./data/user.JSON', {encoding: 'utf8', flag: 'r'})
+            let userString = readData('./data/user.JSON')
             let users = JSON.parse(userString)
             users.forEach(item => {
                 if (item.name === userInfo.name) {
@@ -96,11 +96,8 @@ handlers.register = (req, res) => {
                     }
                     users.push(userObj)
                     users = JSON.stringify(users)
-                    fs.writeFile('./data/user.JSON', users, (err) => {
-                        if (err) console.log(err)
-                        console.log("write done")
-                    })
-                    res.writeHead(301, {'location': '/home'})
+                    writeData('./data/user.JSON', users)
+                    res.writeHead(301, {'location': '/login'})
                     res.end()
                     break
             }
@@ -124,10 +121,9 @@ handlers.edit = (req, res) => {
             data += chunk;
         })
         req.on('end', () => {
-            console.log(id);
             let userEdit = qs.parse(data)
-            let idString = fs.readFileSync('./data/tempId.JSON', {encoding: 'utf8', flag: 'r'})
-            let userString = fs.readFileSync('./data/user.JSON', {encoding: 'utf8', flag: 'r'})
+            let idString = readData('./data/tempId.JSON')
+            let userString = readData('./data/user.JSON')
             let users = JSON.parse(userString)
             users.forEach(item => {
                 if (idString === item.id) {
@@ -136,10 +132,41 @@ handlers.edit = (req, res) => {
                 }
             })
             users = JSON.stringify(users)
-            fs.writeFile('./data/user.JSON', users, (err) => {
-                if (err) console.log(err)
-                console.log("Edit done")
+            writeData('./data/user.JSON', users)
+        })
+        res.writeHead(301, {'location': '/profile'})
+        res.end()
+        req.on('error', () => {
+            console.log('error')
+        })
+    }
+}
+
+handlers.delete = (req, res) => {
+    if (req.method === 'GET') {
+        fs.readFile('./views/delete.html', 'utf-8', (err, data) => {
+            res.writeHead(200, "text/html");
+            res.write(data)
+            res.end()
+        })
+    } else {
+        let data = '';
+        req.on('data', chunk => {
+            data += chunk;
+        })
+        req.on('end', () => {
+            let index
+            let idString = readData('./data/tempId.JSON')
+            let userString = readData('./data/user.JSON')
+            let users = JSON.parse(userString)
+            users.forEach((item, idx) => {
+                if (idString === item.id) {
+                    index = idx
+                }
             })
+            users.splice(index, 1)
+            users = JSON.stringify(users)
+            writeData('./data/user.JSON', users)
         })
         res.writeHead(301, {'location': '/home'})
         res.end()
@@ -147,6 +174,14 @@ handlers.edit = (req, res) => {
             console.log('error')
         })
     }
+}
+
+handlers.profile = (req, res) => {
+    fs.readFile('./views/profile.html', 'utf-8', (err, data) => {
+        res.writeHead(200, "text/html");
+        res.write(data)
+        res.end()
+    })
 }
 
 handlers.notFound = (req, res) => {
@@ -161,7 +196,9 @@ let router = {
     'home': handlers.home,
     'login': handlers.login,
     'register': handlers.register,
-    'edit': handlers.edit
+    'edit': handlers.edit,
+    'delete': handlers.delete,
+    'profile': handlers.profile
 }
 
 server.listen(3000, () => {
@@ -176,4 +213,14 @@ function isCheckId(id, array) {
         }
     })
     return flag
+}
+
+function readData(url) {
+    let data
+    data = fs.readFileSync(url, {encoding: 'utf8', flag: 'r'})
+    return data
+}
+
+function writeData(url, content) {
+    fs.writeFileSync(url, content)
 }
